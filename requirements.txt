@@ -1,0 +1,12 @@
+# SGLV - Supermercado SuperMais
+# Dependências do projeto
+#
+# Este projeto utiliza apenas bibliotecas da biblioteca padrão do Python,
+# portanto não há pacotes externos a instalar.
+#
+# Bibliotecas utilizadas (já incluídas no Python 3.x):
+#   - sqlite3  : banco de dados local
+#   - logging  : sistema de alertas e log de operações
+#   - os       : limpeza de tela multiplataforma
+#
+# Requisito: Python 3.8 ou superior
