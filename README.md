@@ -8,10 +8,10 @@
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ## 👥 Integrantes
-
-😐 Mario Antonio Oliveira  
-🙂 Vinicius Augusto Silva
-
+```
+😐 Mario Antonio Oliveira - RM: 567713
+🙂 Vinicius Augusto Silva - RM: 566830
+```
 ## 📋 Sobre o Projeto
 
 O SGLV 🛒 é um Sistema Gerenciador de Loja de Varejo com Gestão de Estoque de Produtos, desenvolvido em Python com foco em **Programação Orientada a Objetos (POO)** e persistência de dados via **SQLite**. O sistema roda no terminal com um menu interativo que limpa a tela a cada operação, proporcionando uma experiência de uso limpa e organizada.
