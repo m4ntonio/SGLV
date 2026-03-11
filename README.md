@@ -40,9 +40,9 @@ Funcionalidades de manipulação do estoque:
 
 ## 🗄️ Banco de Dados
 
-O sistema utiliza **SQLite** para persistência local dos dados. Na primeira execução, o arquivo `sglv.db` é criado automaticamente na mesma pasta do script. Todos os dados cadastrados são preservados entre execuções.
+O sistema utiliza **SQLite** para persistência local dos dados. Na primeira execução, o arquivo `produto.db` é criado automaticamente na mesma pasta do script. Todos os dados cadastrados são preservados entre execuções.
 
-> `sglv.db` está listado no `.gitignore` e **não é versionado** no repositório — cada usuário gera o seu localmente ao rodar o sistema.
+> `produto.db` está listado no `.gitignore` e **não é versionado** no repositório — cada usuário gera o seu localmente ao rodar o sistema.
 
 ## 🖥️ Interface
 
@@ -74,7 +74,7 @@ cd SGLV
 
 Execute o sistema:
 ```bash
-python sglv_app.py
+python app.py
 ```
 
 O menu principal será exibido automaticamente.
@@ -82,16 +82,16 @@ O menu principal será exibido automaticamente.
 ## 🗂️ Estrutura do Projeto
 
 ```
-gerenciador-loja-varejo/
-├── sglv_app.py              # Sistema completo (classes + interface + banco)
+SGLV/
+├── app.py              # Sistema completo (classes + interface + banco)
 ├── requirements.txt         # Dependências do projeto (bibliotecas padrão)
 ├── .gitignore               # Arquivos ignorados pelo Git
 ├── LICENSE                  #
-├── SGLV.md                  #
+├── roadmap.md               #
 └── README.md                # Documentação do projeto
 ```
 
-> O arquivo `sglv.db` é gerado automaticamente ao rodar o sistema e **não está incluso no repositório**.
+> O arquivo `produto.db` é gerado automaticamente ao rodar o sistema e **não está incluso no repositório**.
 
 ## 🏗️ Arquitetura do Sistema
 
@@ -108,7 +108,7 @@ gerenciador-loja-varejo/
                          │
 ┌────────────────────────▼────────────────────────┐
 │             Banco de Dados SQLite               │
-│                     sglv.db                     │
+│                  produto.db                     │
 └─────────────────────────────────────────────────┘
 ```
 
