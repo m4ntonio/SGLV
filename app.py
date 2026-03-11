@@ -11,20 +11,22 @@ Etapa 2: Gestão de Estoque
 Integração: Banco de dados SQLite
 """
 
-import os          # Usada para comandos do sistema operacional (ex: limpar tela)
-import sqlite3     # Biblioteca para trabalhar com banco de dados SQLite
-import logging     # Sistema de logs para registrar eventos do sistema
+import os        # Usada para comandos do sistema operacional (ex: limpar tela)
+import sqlite3   # Biblioteca para trabalhar com banco de dados SQLite
+import logging   # Sistema de logs para registrar eventos do sistema
 
 # --- Configuração do sistema de log ---
 
 logging.basicConfig(
-    level=logging.INFO,  # Nível mínimo de log exibido (INFO, WARNING, ERROR)
-    format="%(asctime)s [%(levelname)s] %(message)s",  # Formato da mensagem
-    datefmt="%Y-%m-%d %H:%M:%S"  # Formato da data e hora
+    level=logging.INFO,   # Nível mínimo de log exibido (INFO, WARNING, ERROR)
+    format="%(asctime)s [%(levelname)s] %(message)s",   # Formato da mensagem
+    datefmt="%Y-%m-%d %H:%M:%S",   # Formato da data e hora
+    encoding="utf-8",   # Suporte a caracteres especiais
+    filename="historico.log"   # Grava o histórico de operações em arquivo local
 )
-logger = logging.getLogger("SGLV")
+logger = logging.getLogger("SGLV")   # Identificador do sistema nos logs
 
-DB_FILE = "sglv.db" # Arquivo do banco SQLite
+DB_FILE = "produto.db" # Arquivo do banco SQLite
 
 # --- Exceção customizada para cancelamento pelo usuário ---
 
@@ -62,7 +64,7 @@ class Produto:
         preco: float,
         descricao: str,
         fornecedor: str,
-        estoque_minimo: int = 5,
+        estoque_minimo: int = 0,
     ):
         if quantidade < 0:
             raise ValueError("A quantidade inicial não pode ser negativa.")
@@ -79,21 +81,31 @@ class Produto:
         self.estoque_minimo = estoque_minimo
 
     def exibir_detalhes(self) -> None:
-        """Imprime todos os atributos do produto de forma formatada."""
-        alerta = "  ⚠️  ESTOQUE BAIXO" if self.quantidade <= self.estoque_minimo else ""
-        print(f"""
-┌─────────────────────────────────────────────────┐
-│  DETALHES DO PRODUTO{alerta}
-├─────────────────────────────────────────────────┤
-│  Código        : {self.codigo}
-│  Nome          : {self.nome}
-│  Categoria     : {self.categoria}
-│  Quantidade    : {self.quantidade} unidades
-│  Estoque mín.  : {self.estoque_minimo} unidades
-│  Preço         : R$ {self.preco:.2f}
-│  Fornecedor    : {self.fornecedor}
-│  Descrição     : {self.descricao}
-└─────────────────────────────────────────────────┘""")
+        """Lista todos os atributos do produto de forma formatada."""
+        status = f"⚠︎  ESTOQUE BAIXO: {self.quantidade}" if self.quantidade <= self.estoque_minimo else f"☑︎  ESTOQUE ATUAL: {self.quantidade}"
+
+        # Calcula a largura dinamicamente baseada no conteúdo mais largo
+        linhas = [
+            f" Código        : {self.codigo}",
+            f" Nome          : {self.nome}",
+            f" Categoria     : {self.categoria}",
+            f" Quantidade    : {self.quantidade} unidades",
+            f" Estoque mín.  : {self.estoque_minimo} unidades",
+            f" Preço         : R$ {self.preco:.2f}",
+            f" Fornecedor    : {self.fornecedor}",
+            f" Descrição     : {self.descricao}",
+            f" Status        : {status}",
+        ]
+        sep = "=" * max(len(l) for l in linhas)
+
+        print(f"\n{sep}")
+        print(" DETALHES DO PRODUTO")
+        print(sep)
+        for linha in linhas[:-1]:
+            print(linha)
+        print(sep)
+        print(linhas[-1])
+        print(f"{sep}\n")
 
 # --- ETAPA 2: Classe GerenciadorEstoque com SQLite ---
 
@@ -136,18 +148,20 @@ class GerenciadorEstoque:
             """)
             conn.commit()
 
-    # --- Helpers internos ---
+    # --- Conversão de dados do banco ---
 
     def _linha_para_produto(self, linha: tuple) -> Produto:
         """Converte uma linha do banco (tuple) em um objeto Produto."""
         codigo, nome, categoria, quantidade, preco, descricao, fornecedor, estoque_minimo = linha
         return Produto(codigo, nome, categoria, quantidade, preco, descricao, fornecedor, estoque_minimo)
+    
+    # --- Verificação de alertas ---
 
     def _verificar_alerta_estoque(self, produto: Produto) -> None:
         """Emite alerta de estoque baixo via log quando necessário."""
         if produto.quantidade <= produto.estoque_minimo:
             logger.warning(
-                f"⚠️  ALERTA DE ESTOQUE BAIXO | [{produto.codigo}] {produto.nome}: "
+                f"⚠︎ ALERTA DE ESTOQUE BAIXO | [{produto.codigo}] {produto.nome}: "
                 f"{produto.quantidade} unidade(s) (mínimo: {produto.estoque_minimo}). "
                 f"Fornecedor: {produto.fornecedor}"
             )
@@ -173,7 +187,7 @@ class GerenciadorEstoque:
                     produto.fornecedor, produto.estoque_minimo
                 ))
                 conn.commit()
-            logger.info(f"Produto cadastrado: [{produto.codigo}] {produto.nome}")
+            logger.info(f"✔︎ Produto cadastrado: [{produto.codigo}] {produto.nome}")
             self._verificar_alerta_estoque(produto)
         except sqlite3.IntegrityError:
             raise ValueError(f"Já existe um produto com o código '{produto.codigo}'.")
@@ -219,7 +233,7 @@ class GerenciadorEstoque:
 
         produto.quantidade = nova_quantidade
         logger.info(
-            f"Estoque aumentado | [{codigo}] {produto.nome}: "
+            f"⬆︎ Estoque aumentado | [{codigo}] {produto.nome}: "
             f"+{quantidade} → total {nova_quantidade} unidades"
         )
         self._verificar_alerta_estoque(produto)
@@ -240,7 +254,7 @@ class GerenciadorEstoque:
 
         if quantidade > produto.quantidade:
             logger.warning(
-                f"Remoção parcial | [{codigo}] {produto.nome}: "
+                f"⚠︎ Remoção parcial | [{codigo}] {produto.nome}: "
                 f"solicitado {quantidade}, disponível {produto.quantidade}. "
                 f"Estoque será zerado."
             )
@@ -257,7 +271,7 @@ class GerenciadorEstoque:
 
         produto.quantidade = nova_quantidade
         logger.info(
-            f"Estoque reduzido | [{codigo}] {produto.nome}: "
+            f"⬇︎ Estoque reduzido | [{codigo}] {produto.nome}: "
             f"total {nova_quantidade} unidades"
         )
         self._verificar_alerta_estoque(produto)
@@ -285,7 +299,7 @@ class GerenciadorEstoque:
 
         produto.quantidade = nova_quantidade
         logger.info(
-            f"Estoque atualizado | [{codigo}] {produto.nome}: "
+            f"↪︎ Estoque atualizado | [{codigo}] {produto.nome}: "
             f"{quantidade_anterior} → {nova_quantidade} unidades"
         )
         self._verificar_alerta_estoque(produto)
@@ -300,19 +314,19 @@ class GerenciadorEstoque:
             print("\nNenhum produto cadastrado ainda.\n")
             return
 
-        print(f"\n{'Nome do produto':<25} | {'Categoria':<20} | {'Qtd':>5} | {'Preço':>9} | Status")
-        print("-" * 80)
+        print(f"\n{'Código':<9} | {'Nome do produto':<25} | {'Categoria':<18} | {'Qtd Mín.':>5} | {'Preço':>9} | Status")
+        print("-" * 110)
         for linha in linhas:
             p = self._linha_para_produto(linha)
-            status = "⚠️  estoque baixo" if p.quantidade <= p.estoque_minimo else "OK"
-            print(f"- {p.nome:<23} | {p.categoria:<20} | {p.quantidade:>5} | R${p.preco:>7.2f} | {status}")
-        print("-" * 80)
+            status = f"⚠︎  ESTOQUE BAIXO: {p.quantidade}" if p.quantidade <= p.estoque_minimo else f"☑︎  ESTOQUE ATUAL: {p.quantidade}"
+            print(f" {p.codigo:<8} | {p.nome:<25} | {p.categoria:<18} | {p.estoque_minimo:>8} | R${p.preco:>7.2f} | {status}")
+        print("-" * 110)
         print(f"Total de produtos: {len(linhas)}\n")
 
 # --- Interface ---
 
 def exibir_logo():
-    """Exibe o cabeçalho ASCII do SGLV."""
+    """Exibe o cabeçalho ASCII do sistema."""
     print("""
 ░██████╗░██████╗░██╗░░░░░██╗░░░██╗
 ██╔════╝██╔════╝░██║░░░░░██║░░░██║
@@ -367,11 +381,11 @@ def _input_int(mensagem: str) -> int:
                 raise CancelamentoUsuario()
             numero = int(valor)
             if numero < 0:
-                print("Digite um número positivo (ou S para cancelar).")
+                print("Digite um número positivo (ou 'S' para cancelar).")
                 continue
             return numero
         except ValueError:
-            print("Digite um número inteiro válido (ou S para cancelar).")
+            print("Digite um número inteiro válido (ou 'S' para cancelar).")
 
 def _input_float(mensagem: str) -> float:
     """
@@ -385,11 +399,11 @@ def _input_float(mensagem: str) -> float:
                 raise CancelamentoUsuario()
             numero = float(valor)
             if numero < 0:
-                print("Digite um valor positivo (ex: 9.99 | ou S para cancelar).")
+                print("Digite um valor positivo (ex: 9.99 | ou 'S' para cancelar).")
                 continue
             return numero
         except ValueError:
-            print("Digite um valor numérico válido (ex: 9.99 | ou S para cancelar).")
+            print("Digite um valor numérico válido (ex: 9.99 | ou 'S' para cancelar).")
 
 def _input_nao_vazio(mensagem: str) -> str:
     """
@@ -402,21 +416,38 @@ def _input_nao_vazio(mensagem: str) -> str:
             raise CancelamentoUsuario()
         if valor:
             return valor
-        print("Este campo não pode ficar vazio (ou S para cancelar).")
+        print("Este campo não pode ficar vazio (ou 'S' para cancelar).")
+
+def _input_limit(mensagem: str, limite: int) -> str:
+    """
+    Lê uma string não vazia respeitando o limite de caracteres.
+    Dispara CancelamentoUsuario se o usuário digitar 'S'.
+    """
+    while True:
+        valor = input(mensagem).strip()
+        if valor.upper() == "S":
+            raise CancelamentoUsuario()
+        if not valor:
+            print(f"Este campo não pode ficar vazio (ou S para cancelar).")
+            continue
+        if len(valor) > limite:
+            print(f"Máximo de {limite} caracteres. Você digitou {len(valor)}.")
+            continue
+        return valor
 
 # --- Funções de cada opção do menu ---
 
 def cadastrar_produto(gerenciador: GerenciadorEstoque):
     """Fluxo interativo para cadastrar um novo produto."""
     exibir_subtitulo("Cadastro de novo produto")
-    print("(Digite S em qualquer campo para cancelar)\n")
+    print("(Digite 'S' em qualquer campo para cancelar)\n")
     try:
         codigo      = _input_nao_vazio("Digite o código do produto       : ").upper()
-        nome        = _input_nao_vazio("Digite o nome do produto         : ")
+        nome        = _input_limit    ("Digite o nome do produto         : ", 25)
         categoria   = _input_nao_vazio("Digite a categoria do produto    : ")
         quantidade  = _input_int      ("Digite a quantidade inicial      : ")
         preco       = _input_float    ("Digite o preço de venda (R$)     : ")
-        descricao   = input           ("Digite a descrição do produto    : ").strip()
+        descricao   = _input_nao_vazio("Digite a descrição do produto    : ")
         fornecedor  = _input_nao_vazio("Digite o nome do fornecedor      : ")
         estoque_min = _input_int      ("Digite o estoque mínimo          : ")
 
@@ -440,63 +471,73 @@ def listar_produtos(gerenciador: GerenciadorEstoque):
 def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):
     """Fluxo interativo para entrada de mercadoria no estoque."""
     exibir_subtitulo("Adicionar ao estoque")
-    print("(Digite S em qualquer campo para cancelar)\n")
-    try:
-        codigo     = _input_nao_vazio("Digite o código do produto       : ").upper()
-        quantidade = _input_int      ("Digite a quantidade a adicionar  : ")
-        gerenciador.adicionar_ao_estoque(codigo, quantidade)
-        print("\nEstoque atualizado com sucesso!")
-    except CancelamentoUsuario:
-        print("\nOperação cancelada.")
-    except (ValueError, KeyError) as e:
-        print(f"\nErro: {e}")
+    print("(Digite 'S' em qualquer campo para cancelar)\n")
+    while True:
+        try:
+            codigo     = _input_nao_vazio("Digite o código do produto       : ").upper()
+            quantidade = _input_int      ("Digite a quantidade a adicionar  : ")
+            gerenciador.adicionar_ao_estoque(codigo, quantidade)
+            print("\nEstoque atualizado com sucesso!")
+            # continua no loop para nova operação
+        except CancelamentoUsuario:
+            print("\nOperação cancelada.")
+            break
+        except (ValueError, KeyError) as e:
+            print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
 
     voltar_ao_menu_principal()
 
 def remover_do_estoque(gerenciador: GerenciadorEstoque):
     """Fluxo interativo para saída de mercadoria do estoque."""
     exibir_subtitulo("Remover do estoque")
-    print("(Digite S em qualquer campo para cancelar)\n")
-    try:
-        codigo     = _input_nao_vazio("Digite o código do produto       : ").upper()
-        quantidade = _input_int      ("Digite a quantidade a remover    : ")
-        gerenciador.remover_do_estoque(codigo, quantidade)
-        print("\nEstoque atualizado com sucesso!")
-    except CancelamentoUsuario:
-        print("\nOperação cancelada.")
-    except (ValueError, KeyError) as e:
-        print(f"\nErro: {e}")
+    print("(Digite 'S' em qualquer campo para cancelar)\n")
+    while True:
+        try:
+            codigo     = _input_nao_vazio("Digite o código do produto       : ").upper()
+            quantidade = _input_int      ("Digite a quantidade a remover    : ")
+            gerenciador.remover_do_estoque(codigo, quantidade)
+            print("\nEstoque atualizado com sucesso!")
+            # continua no loop para nova operação
+        except CancelamentoUsuario:
+            print("\nOperação cancelada.")
+            break
+        except (ValueError, KeyError) as e:
+            print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
 
     voltar_ao_menu_principal()
 
 def atualizar_estoque(gerenciador: GerenciadorEstoque):
     """Fluxo interativo para ajuste manual do estoque."""
     exibir_subtitulo("Atualizar estoque manualmente")
-    print("(Digite S em qualquer campo para cancelar)\n")
-    try:
-        codigo          = _input_nao_vazio("Digite o código do produto       : ").upper()
-        nova_quantidade = _input_int      ("Digite a nova quantidade total   : ")
-        gerenciador.atualizar_estoque(codigo, nova_quantidade)
-        print("\nEstoque atualizado com sucesso!")
-    except CancelamentoUsuario:
-        print("\nOperação cancelada.")
-    except (ValueError, KeyError) as e:
-        print(f"\nErro: {e}")
+    print("(Digite 'S' em qualquer campo para cancelar)\n")
+    while True:
+        try:
+            codigo          = _input_nao_vazio("Digite o código do produto       : ").upper()
+            nova_quantidade = _input_int      ("Digite a nova quantidade total   : ")
+            gerenciador.atualizar_estoque(codigo, nova_quantidade)
+            print("\nEstoque atualizado com sucesso!")
+            # continua no loop para nova operação
+        except CancelamentoUsuario:
+            print("\nOperação cancelada.")
+            break
+        except (ValueError, KeyError) as e:
+            print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
 
     voltar_ao_menu_principal()
 
 def buscar_produto(gerenciador: GerenciadorEstoque):
     """Fluxo interativo para buscar e exibir detalhes de um produto."""
     exibir_subtitulo("Buscar produto por código")
-    print("(Digite S para cancelar)\n")
-    try:
-        codigo  = _input_nao_vazio("Digite o código do produto: ").upper()
-        produto = gerenciador.buscar_produto(codigo)
-        produto.exibir_detalhes()
-    except CancelamentoUsuario:
-        print("\nOperação cancelada.")
-    except KeyError as e:
-        print(f"\nErro: {e}")
+    while True:
+        try:
+            codigo  = _input_nao_vazio("Digite o código do produto ou 'S' para cancelar: ").upper()
+            produto = gerenciador.buscar_produto(codigo)
+            produto.exibir_detalhes()
+        except CancelamentoUsuario:
+            print("\nOperação cancelada.")
+            break   # usuário cancelou, sai do loop
+        except KeyError:
+            print(f"\nProduto não encontrado. Tente novamente ou digite 'S' para cancelar.\n")
 
     voltar_ao_menu_principal()
 
