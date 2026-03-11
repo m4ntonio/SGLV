@@ -39,7 +39,7 @@ class CancelamentoUsuario(Exception):
 
 class Produto:
     """
-    Representa um produto do SGLV.
+    Classe que representa um produto dentro do sistema.
 
     Atributos:
         codigo (str)        : Identificador único do produto.
