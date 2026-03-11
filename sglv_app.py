@@ -30,6 +30,7 @@ DB_FILE = "sglv.db" # Arquivo do banco SQLite
 
 class CancelamentoUsuario(Exception):
     """
+    Exceção criada para controlar cancelamentos do usuário.
     Disparada quando o usuário digita 'S' em qualquer campo de entrada,
     sinalizando que deseja cancelar a operação atual e voltar ao menu.
     """
