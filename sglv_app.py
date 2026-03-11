@@ -11,16 +11,16 @@ Etapa 2: Gestão de Estoque
 Integração: Banco de dados SQLite
 """
 
-import os
-import sqlite3
-import logging
+import os          # Usada para comandos do sistema operacional (ex: limpar tela)
+import sqlite3     # Biblioteca para trabalhar com banco de dados SQLite
+import logging     # Sistema de logs para registrar eventos do sistema
 
 # --- Configuração do sistema de log ---
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    level=logging.INFO,  # Nível mínimo de log exibido (INFO, WARNING, ERROR)
+    format="%(asctime)s [%(levelname)s] %(message)s",  # Formato da mensagem
+    datefmt="%Y-%m-%d %H:%M:%S"  # Formato da data e hora
 )
 logger = logging.getLogger("SGLV")
 
