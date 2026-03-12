@@ -187,7 +187,7 @@ class GerenciadorEstoque:
                     produto.fornecedor, produto.estoque_minimo
                 ))
                 conn.commit()
-            logger.info(f"✔︎ Produto cadastrado: [{produto.codigo}] {produto.nome}")
+            logger.info(f"☑︎ Produto cadastrado: [{produto.codigo}] {produto.nome}")
             self._verificar_alerta_estoque(produto)
         except sqlite3.IntegrityError:
             raise ValueError(f"Já existe um produto com o código '{produto.codigo}'.")
@@ -441,24 +441,41 @@ def cadastrar_produto(gerenciador: GerenciadorEstoque):
     """Fluxo interativo para cadastrar um novo produto."""
     exibir_subtitulo("Cadastro de novo produto")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
-    try:
-        codigo      = _input_nao_vazio("Digite o código do produto       : ").upper()
-        nome        = _input_limit    ("Digite o nome do produto         : ", 25)
-        categoria   = _input_nao_vazio("Digite a categoria do produto    : ")
-        quantidade  = _input_int      ("Digite a quantidade inicial      : ")
-        preco       = _input_float    ("Digite o preço de venda (R$)     : ")
-        descricao   = _input_nao_vazio("Digite a descrição do produto    : ")
-        fornecedor  = _input_nao_vazio("Digite o nome do fornecedor      : ")
-        estoque_min = _input_int      ("Digite o estoque mínimo          : ")
+    while True:
+        try:
+            # Verifica o código antes de continuar o fluxo
+            while True:
+                codigo = _input_nao_vazio("Digite o código do produto       : ").upper()
+                try:
+                    gerenciador.buscar_produto(codigo)
+                    print(f"Código '{codigo}' já existe. Digite outro código.\n")
+                except KeyError:
+                    break  # código disponível, pode continuar
 
-        produto = Produto(codigo, nome, categoria, quantidade, preco,
-                          descricao, fornecedor, estoque_min)
-        gerenciador.cadastrar_produto(produto)
-        print(f"\nO produto '{nome}' foi cadastrado com sucesso!")
-    except CancelamentoUsuario:
-        print("\nCadastro cancelado. Nenhum produto foi salvo.")
-    except (ValueError, KeyError) as e:
-        print(f"\nErro: {e}")
+            nome        = _input_limit    ("Digite o nome do produto         : ", 25)
+            categoria   = _input_nao_vazio("Digite a categoria do produto    : ")
+            quantidade  = _input_int      ("Digite a quantidade inicial      : ")
+            preco       = _input_float    ("Digite o preço de venda (R$)     : ")
+            descricao   = _input_limit    ("Digite a descrição do produto    : ", 10)
+            fornecedor  = _input_nao_vazio("Digite o nome do fornecedor      : ")
+            estoque_min = _input_int      ("Digite o estoque mínimo          : ")
+
+            produto = Produto(codigo, nome, categoria, quantidade, preco,
+                              descricao, fornecedor, estoque_min)
+            gerenciador.cadastrar_produto(produto)
+            print(f"\nO produto '{nome}' foi cadastrado com sucesso!")
+            print("─" * 40)
+            
+            continuar = input("\nDeseja cadastrar outro produto? ('S' para sair / 'Enter' para continuar): ").strip().upper()
+            print()
+            if continuar == "S":
+                break
+
+        except CancelamentoUsuario:
+            print("\nCadastro cancelado.")
+            break
+        except (ValueError, KeyError) as e:
+            print(f"\nErro: {e}")
 
     voltar_ao_menu_principal()
 
