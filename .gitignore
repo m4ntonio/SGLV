@@ -24,3 +24,6 @@ env/
 # Sistema operacional
 .DS_Store        # Mac
 Thumbs.db        # Windows
+
+# Logs
+*.log
