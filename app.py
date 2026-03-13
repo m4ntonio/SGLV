@@ -466,7 +466,7 @@ def cadastrar_produto(gerenciador: GerenciadorEstoque):  # Opção 1
             categoria   = _input_nao_vazio("Digite a categoria do produto    : ")
             quantidade  = _input_int      ("Digite a quantidade inicial      : ")
             preco       = _input_float    ("Digite o preço de venda (R$)     : ")
-            descricao   = _input_limit    ("Digite a descrição do produto    : ", 10)
+            descricao   = _input_limit    ("Digite a descrição do produto    : ", 25)
             fornecedor  = _input_nao_vazio("Digite o nome do fornecedor      : ")
             estoque_min = _input_int      ("Digite o estoque mínimo          : ")
 
