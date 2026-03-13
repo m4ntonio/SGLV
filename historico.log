@@ -3,3 +3,9 @@
 2026-03-12 10:29:07 [INFO] ✔︎ Produto cadastrado: [003] laranja
 2026-03-12 10:29:07 [WARNING] ⚠︎ ALERTA DE ESTOQUE BAIXO | [003] laranja: 100 unidade(s) (mínimo: 100). Fornecedor: joão frutas
 2026-03-12 10:33:19 [INFO] ✔︎ Produto cadastrado: [004] cereja
+2026-03-13 18:52:55 [WARNING] ⚠︎ Remoção parcial | [004] cereja: solicitado 120, disponível 100. Estoque será zerado.
+2026-03-13 18:52:55 [INFO] ⬇︎ Estoque reduzido | [004] cereja: total 0 unidades
+2026-03-13 18:52:55 [WARNING] ⚠︎ ALERTA DE ESTOQUE BAIXO | [004] cereja: 0 unidade(s) (mínimo: 10). Fornecedor: joão frutas
+2026-03-13 19:06:16 [WARNING] ⚠︎ Remoção parcial | [003] laranja: solicitado 120, disponível 100. Estoque será zerado.
+2026-03-13 19:06:16 [INFO] ⬇︎ Estoque reduzido | [003] laranja: total 0 unidades
+2026-03-13 19:06:16 [WARNING] ⚠︎ ALERTA DE ESTOQUE BAIXO | [003] laranja: 0 unidade(s) (mínimo: 100). Fornecedor: joão frutas

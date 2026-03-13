@@ -81,7 +81,7 @@ class Produto:
         self.estoque_minimo = estoque_minimo
 
     def exibir_detalhes(self) -> None:
-        """Lista todos os atributos do produto de forma formatada."""
+        """Exibe todos os atributos do produto de forma formatada."""
         status = f"⚠︎  ESTOQUE BAIXO: {self.quantidade}" if self.quantidade <= self.estoque_minimo else f"☑︎  ESTOQUE ATUAL: {self.quantidade}"
 
         # Calcula a largura dinamicamente baseada no conteúdo mais largo
@@ -258,6 +258,8 @@ class GerenciadorEstoque:
                 f"solicitado {quantidade}, disponível {produto.quantidade}. "
                 f"Estoque será zerado."
             )
+            print(f"\n⚠︎  Quantidade solicitada ({quantidade}) maior que o disponível ({produto.quantidade}).")
+            print(f"⚠︎  Estoque de '{produto.nome}' será zerado!")
             nova_quantidade = 0
         else:
             nova_quantidade = produto.quantidade - quantidade
@@ -371,7 +373,9 @@ def opcao_invalida():
 
 def _input_int(mensagem: str) -> int:
     """
-    Lê um inteiro positivo do terminal, repetindo até receber um valor válido.
+    Lê um número inteiro do terminal.
+    Rejeita valores negativos, textos e campos vazios.
+    Repete a solicitação até receber um valor válido.
     Dispara CancelamentoUsuario se o usuário digitar 'S'.
     """
     while True:
@@ -389,8 +393,10 @@ def _input_int(mensagem: str) -> int:
 
 def _input_float(mensagem: str) -> float:
     """
-    Lê um float positivo do terminal, repetindo até receber um valor válido.
-    Dispara CancelamentoUsuario se o usuário digitar 'S'.
+    Lê um número decimal do terminal.
+    Rejeita valores negativos, textos e campos vazios.
+    Aceita vírgula ou ponto como separador decimal (ex: 9,99 ou 9.99).
+    Repete a solicitação até receber um valor válido.
     """
     while True:
         try:
@@ -407,7 +413,9 @@ def _input_float(mensagem: str) -> float:
 
 def _input_nao_vazio(mensagem: str) -> str:
     """
-    Lê uma string não vazia do terminal.
+    Lê um texto do terminal.
+    Rejeita campos vazios e espaços em branco.
+    Repete a solicitação até receber um valor válido.
     Dispara CancelamentoUsuario se o usuário digitar 'S'.
     """
     while True:
@@ -420,7 +428,9 @@ def _input_nao_vazio(mensagem: str) -> str:
 
 def _input_limit(mensagem: str, limite: int) -> str:
     """
-    Lê uma string não vazia respeitando o limite de caracteres.
+    Lê um texto do terminal respeitando o limite máximo de caracteres.
+    Rejeita campos vazios, espaços em branco e textos acima do limite.
+    Repete a solicitação até receber um valor válido.
     Dispara CancelamentoUsuario se o usuário digitar 'S'.
     """
     while True:
@@ -428,7 +438,7 @@ def _input_limit(mensagem: str, limite: int) -> str:
         if valor.upper() == "S":
             raise CancelamentoUsuario()
         if not valor:
-            print(f"Este campo não pode ficar vazio (ou S para cancelar).")
+            print(f"Este campo não pode ficar vazio (ou 'S' para cancelar).")
             continue
         if len(valor) > limite:
             print(f"Máximo de {limite} caracteres. Você digitou {len(valor)}.")
@@ -437,8 +447,8 @@ def _input_limit(mensagem: str, limite: int) -> str:
 
 # --- Funções de cada opção do menu ---
 
-def cadastrar_produto(gerenciador: GerenciadorEstoque):
-    """Fluxo interativo para cadastrar um novo produto."""
+def cadastrar_produto(gerenciador: GerenciadorEstoque):  # Opção 1
+    """Solicita e valida todos os campos necessários para cadastrar um novo produto."""
     exibir_subtitulo("Cadastro de novo produto")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
     while True:
@@ -479,14 +489,14 @@ def cadastrar_produto(gerenciador: GerenciadorEstoque):
 
     voltar_ao_menu_principal()
 
-def listar_produtos(gerenciador: GerenciadorEstoque):
+def listar_produtos(gerenciador: GerenciadorEstoque):  # Opção 2
     """Exibe todos os produtos cadastrados no estoque."""
     exibir_subtitulo("Listagem de produtos")
     gerenciador.listar_produtos()
     voltar_ao_menu_principal()
 
-def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):
-    """Fluxo interativo para entrada de mercadoria no estoque."""
+def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):  # Opção 3
+    """Solicita o código do produto e a quantidade a ser adicionada ao estoque."""
     exibir_subtitulo("Adicionar ao estoque")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
     while True:
@@ -504,8 +514,12 @@ def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):
 
     voltar_ao_menu_principal()
 
-def remover_do_estoque(gerenciador: GerenciadorEstoque):
-    """Fluxo interativo para saída de mercadoria do estoque."""
+def remover_do_estoque(gerenciador: GerenciadorEstoque):  # Opção 4
+    """
+    Solicita o código do produto e a quantidade a ser removida do estoque.
+    Alerta se a quantidade solicitada for maior que o disponível.
+    Permanece em loop permitindo remover vários produtos seguidos.
+    """
     exibir_subtitulo("Remover do estoque")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
     while True:
@@ -523,8 +537,8 @@ def remover_do_estoque(gerenciador: GerenciadorEstoque):
 
     voltar_ao_menu_principal()
 
-def atualizar_estoque(gerenciador: GerenciadorEstoque):
-    """Fluxo interativo para ajuste manual do estoque."""
+def atualizar_estoque(gerenciador: GerenciadorEstoque):  # Opção 5
+    """Solicita o código do produto e a nova quantidade total."""
     exibir_subtitulo("Atualizar estoque manualmente")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
     while True:
@@ -542,8 +556,8 @@ def atualizar_estoque(gerenciador: GerenciadorEstoque):
 
     voltar_ao_menu_principal()
 
-def buscar_produto(gerenciador: GerenciadorEstoque):
-    """Fluxo interativo para buscar e exibir detalhes de um produto."""
+def buscar_produto(gerenciador: GerenciadorEstoque):  # Opção 6
+    """Solicita o código do produto e exibe todos os seus detalhes."""
     exibir_subtitulo("Buscar produto por código")
     while True:
         try:
@@ -558,7 +572,7 @@ def buscar_produto(gerenciador: GerenciadorEstoque):
 
     voltar_ao_menu_principal()
 
-def finalizar_app():
+def finalizar_app():  # Opção 7
     """Encerra o sistema."""
     exibir_subtitulo("Encerrando o sistema")
     print("Obrigado por usar o SGLV 🛒 Sistema Gerenciador de Loja de Varejo. Até logo!\n")
