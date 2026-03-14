@@ -1,3 +1,7 @@
 2026-03-13 20:42:47 [INFO] ☑︎ Produto cadastrado: [001] Feijão Preto 1kg
 2026-03-13 20:43:46 [INFO] ☑︎ Produto cadastrado: [002] Arroz Integral 5kg
 2026-03-13 20:44:54 [INFO] ☑︎ Produto cadastrado: [003] Café Torrado 500g
+2026-03-13 22:15:46 [INFO] ☑︎ Produto cadastrado: [004] Sabonete
+2026-03-13 22:16:26 [INFO] ⬇︎ Estoque reduzido | [004] Sabonete: total 5 unidades
+2026-03-13 22:16:26 [WARNING] ⚠︎ ALERTA DE ESTOQUE BAIXO | [004] Sabonete: 5 unidade(s) (mínimo: 10). Fornecedor: Unilever
+2026-03-13 22:18:17 [INFO] ⬆︎ Estoque aumentado | [004] Sabonete: +50 → total 55 unidades
