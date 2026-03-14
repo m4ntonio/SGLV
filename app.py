@@ -18,15 +18,15 @@ import logging   # Sistema de logs para registrar eventos do sistema
 # --- Configuração do sistema de log ---
 
 logging.basicConfig(
-    level=logging.INFO,   # Nível mínimo de log exibido (INFO, WARNING, ERROR)
-    format="%(asctime)s [%(levelname)s] %(message)s",   # Formato da mensagem
-    datefmt="%Y-%m-%d %H:%M:%S",   # Formato da data e hora
-    encoding="utf-8",   # Suporte a caracteres especiais
-    filename="historico.log"   # Grava o histórico de operações em arquivo local
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    encoding="utf-8",
+    filename="historico.log"
 )
 logger = logging.getLogger("SGLV")   # Identificador do sistema nos logs
 
-DB_FILE = "produto.db" # Arquivo do banco SQLite
+DB_FILE = "produto.db"
 
 # --- Exceção customizada para cancelamento pelo usuário ---
 
@@ -122,6 +122,26 @@ class GerenciadorEstoque:
         self.db_file = db_file
         self._inicializar_banco()
 
+    def _gerar_codigo(self, categoria: str) -> str:
+        """
+        Gera automaticamente o código do produto baseado na categoria.
+        Extrai as 3 primeiras letras da categoria e adiciona um sequencial.
+        Exemplo: categoria 'Grãos e Cereais' → 'GRA-001', 'GRA-002'...
+        """
+        import unicodedata
+        # Remove acentos antes de extrair o prefixo
+        categoria_sem_acento = unicodedata.normalize('NFKD', categoria).encode('ASCII', 'ignore').decode('ASCII')
+        prefixo = ''.join(c for c in categoria_sem_acento.upper() if c.isalpha())[:3]
+
+        with self._conectar() as conn:
+            cursor = conn.execute(
+                "SELECT COUNT(*) FROM produtos WHERE codigo LIKE ?",
+                (f"{prefixo}-%",)
+            )
+            total = cursor.fetchone()[0]
+
+        return f"{prefixo}-{total + 1:04d}"
+
     # --- Conexão e inicialização do banco ---
 
     def _conectar(self) -> sqlite3.Connection:
@@ -131,7 +151,7 @@ class GerenciadorEstoque:
     def _inicializar_banco(self) -> None:
         """
         Cria a tabela 'produtos' no banco caso ela ainda não exista.
-        Executado automaticamente na inicialização do gerenciador.
+        Executado automaticamente na inicialização do gerenciador.3
         """
         with self._conectar() as conn:
             conn.execute("""
@@ -453,17 +473,10 @@ def cadastrar_produto(gerenciador: GerenciadorEstoque):  # Opção 1
     print("(Digite 'S' em qualquer campo para cancelar)\n")
     while True:
         try:
-            # Verifica o código antes de continuar o fluxo
-            while True:
-                codigo = _input_nao_vazio("Digite o código do produto       : ").upper()
-                try:
-                    gerenciador.buscar_produto(codigo)
-                    print(f"Código '{codigo}' já existe. Digite outro código.\n")
-                except KeyError:
-                    break  # código disponível, pode continuar
-
             nome        = _input_limit    ("Digite o nome do produto         : ", 25)
             categoria   = _input_nao_vazio("Digite a categoria do produto    : ")
+            codigo      = gerenciador._gerar_codigo(categoria)
+            print(f"Código gerado automaticamente    : {codigo}")
             quantidade  = _input_int      ("Digite a quantidade inicial      : ")
             preco       = _input_float    ("Digite o preço de venda (R$)     : ")
             descricao   = _input_limit    ("Digite a descrição do produto    : ", 25)
@@ -475,7 +488,7 @@ def cadastrar_produto(gerenciador: GerenciadorEstoque):  # Opção 1
             gerenciador.cadastrar_produto(produto)
             print(f"\nO produto '{nome}' foi cadastrado com sucesso!")
             print("─" * 40)
-            
+
             continuar = input("\nDeseja cadastrar outro produto? ('S' para sair / 'Enter' para continuar): ").strip().upper()
             print()
             if continuar == "S":
