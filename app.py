@@ -469,7 +469,7 @@ def _input_limit(mensagem: str, limite: int) -> str:
 
 def cadastrar_produto(gerenciador: GerenciadorEstoque):  # Opção 1
     """Solicita e valida todos os campos necessários para cadastrar um novo produto."""
-    exibir_subtitulo("Cadastro de novo produto")
+    exibir_subtitulo("Cadastrar novo produto")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
     while True:
         try:
@@ -495,7 +495,7 @@ def cadastrar_produto(gerenciador: GerenciadorEstoque):  # Opção 1
                 break
 
         except CancelamentoUsuario:
-            print("\nCadastro cancelado.")
+            print("\n✖︎ CADASTRO CANCELADO.")
             break
         except (ValueError, KeyError) as e:
             print(f"\nErro: {e}")
@@ -537,11 +537,10 @@ def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):  # Opção 3
 
         except CancelamentoUsuario:
             print("\nOperação cancelada.")
-            break
+            main()
+            return
         except (ValueError, KeyError) as e:
             print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
-
-    voltar_ao_menu_principal()
 
 def remover_do_estoque(gerenciador: GerenciadorEstoque):  # Opção 4
     """
@@ -591,8 +590,6 @@ def remover_do_estoque(gerenciador: GerenciadorEstoque):  # Opção 4
         except (ValueError, KeyError) as e:
             print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
 
-    #voltar_ao_menu_principal()
-
 def atualizar_estoque(gerenciador: GerenciadorEstoque):  # Opção 5
     """
     Solicita o código do produto e a nova quantidade total.
@@ -625,11 +622,10 @@ def atualizar_estoque(gerenciador: GerenciadorEstoque):  # Opção 5
 
         except CancelamentoUsuario:
             print("\nOperação cancelada.")
-            break
+            main()
+            return
         except (ValueError, KeyError) as e:
             print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
-
-    voltar_ao_menu_principal()
 
 def buscar_produto(gerenciador: GerenciadorEstoque):  # Opção 6
     """Solicita o código do produto e exibe todos os seus detalhes."""
