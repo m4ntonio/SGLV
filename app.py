@@ -509,7 +509,12 @@ def listar_produtos(gerenciador: GerenciadorEstoque):  # Opção 2
     voltar_ao_menu_principal()
 
 def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):  # Opção 3
-    """Solicita o código do produto e a quantidade a ser adicionada ao estoque."""
+    """
+    Solicita o código do produto e a quantidade a ser adicionada.
+    Atualiza o estoque no banco de dados.
+    Permanece em loop permitindo adicionar vários produtos seguidos.
+    Encerra quando o usuário digitar 'S'.
+    """
     exibir_subtitulo("Adicionar ao estoque")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
     while True:
@@ -517,8 +522,19 @@ def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):  # Opção 3
             codigo     = _input_nao_vazio("Digite o código do produto       : ").upper()
             quantidade = _input_int      ("Digite a quantidade a adicionar  : ")
             gerenciador.adicionar_ao_estoque(codigo, quantidade)
-            print("\nEstoque atualizado com sucesso!")
-            # continua no loop para nova operação
+            produto = gerenciador.buscar_produto(codigo)
+            print(f"\n☑︎ Estoque atualizado com sucesso!")
+            print("─" * 35)
+            print(f"  Produto    : {produto.nome}")
+            print(f"  Adicionado : +{quantidade} unidades")
+            print(f"  Total      : {produto.quantidade} unidades")
+            print("─" * 35 + "\n")
+
+            continuar = input("Deseja adicionar outro produto? ('S' para sair / 'Enter' para continuar): ").strip().upper()
+            print()
+            if continuar == "S":
+                break
+
         except CancelamentoUsuario:
             print("\nOperação cancelada.")
             break
@@ -529,9 +545,11 @@ def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):  # Opção 3
 
 def remover_do_estoque(gerenciador: GerenciadorEstoque):  # Opção 4
     """
-    Solicita o código do produto e a quantidade a ser removida do estoque.
+    Solicita o código do produto e a quantidade a ser removida.
+    Atualiza o estoque no banco de dados.
     Alerta se a quantidade solicitada for maior que o disponível.
     Permanece em loop permitindo remover vários produtos seguidos.
+    Encerra quando o usuário digitar 'S'.
     """
     exibir_subtitulo("Remover do estoque")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
@@ -540,27 +558,71 @@ def remover_do_estoque(gerenciador: GerenciadorEstoque):  # Opção 4
             codigo     = _input_nao_vazio("Digite o código do produto       : ").upper()
             quantidade = _input_int      ("Digite a quantidade a remover    : ")
             gerenciador.remover_do_estoque(codigo, quantidade)
-            print("\nEstoque atualizado com sucesso!")
-            # continua no loop para nova operação
+            produto = gerenciador.buscar_produto(codigo)
+            print(f"\n☑︎ Estoque atualizado com sucesso!")
+            print("─" * 35)
+            print(f"  Produto    : {produto.nome}")
+            print(f"  Removido   : -{quantidade} unidades")
+            print(f"  Total      : {produto.quantidade} unidades")
+
+            # Alerta 1 já tratado dentro do método remover_do_estoque
+
+            # Alerta 2 — estoque zerado
+            if produto.quantidade == 0:
+                print(f"  ⚠︎  ESTOQUE ZERADO — REPOSIÇÃO URGENTE!")
+                print(f"  ⚠︎  Fornecedor: {produto.fornecedor}")
+
+            # Alerta 3 — estoque baixo
+            elif produto.quantidade <= produto.estoque_minimo:
+                print(f"  ⚠︎  ESTOQUE BAIXO — REPOSIÇÃO NECESSÁRIA!")
+                print(f"  ⚠︎  Mínimo     : {produto.estoque_minimo} unidades")
+            
+            print("─" * 35 + "\n")
+
+            continuar = input("Deseja remover outro produto? ('S' para sair / 'Enter' para continuar): ").strip().upper()
+            print()
+            if continuar == "S":
+                break
+
         except CancelamentoUsuario:
             print("\nOperação cancelada.")
-            break
+            main()
+            return
         except (ValueError, KeyError) as e:
             print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
 
-    voltar_ao_menu_principal()
+    #voltar_ao_menu_principal()
 
 def atualizar_estoque(gerenciador: GerenciadorEstoque):  # Opção 5
-    """Solicita o código do produto e a nova quantidade total."""
+    """
+    Solicita o código do produto e a nova quantidade total.
+    Sobrescreve a quantidade atual no banco de dados.
+    Útil para correções após inventário físico.
+    Permanece em loop permitindo atualizar vários produtos seguidos.
+    Encerra quando o usuário digitar 'S'.
+    """
     exibir_subtitulo("Atualizar estoque manualmente")
     print("(Digite 'S' em qualquer campo para cancelar)\n")
     while True:
         try:
             codigo          = _input_nao_vazio("Digite o código do produto       : ").upper()
             nova_quantidade = _input_int      ("Digite a nova quantidade total   : ")
+            produto_antes   = gerenciador.buscar_produto(codigo)
+            quantidade_antes = produto_antes.quantidade
             gerenciador.atualizar_estoque(codigo, nova_quantidade)
-            print("\nEstoque atualizado com sucesso!")
-            # continua no loop para nova operação
+            produto = gerenciador.buscar_produto(codigo)
+            print(f"\n☑︎ Estoque atualizado com sucesso!")
+            print("─" * 35)
+            print(f"  Produto    : {produto.nome}")
+            print(f"  Anterior   : {quantidade_antes} unidades")
+            print(f"  Atual      : {produto.quantidade} unidades")
+            print("─" * 35 + "\n")
+
+            continuar = input("Deseja atualizar outro produto? ('S' para sair / 'Enter' para continuar): ").strip().upper()
+            print()
+            if continuar == "S":
+                break
+
         except CancelamentoUsuario:
             print("\nOperação cancelada.")
             break
