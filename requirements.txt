@@ -1,4 +1,4 @@
-# SGLV - Supermercado SuperMais
+# SGLV - Sistema Gerenciador de Loja de Varejo com Gestão de Estoque de Produtos
 # Dependências do projeto
 #
 # Este projeto utiliza apenas bibliotecas da biblioteca padrão do Python,

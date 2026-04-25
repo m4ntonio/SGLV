@@ -29,7 +29,6 @@ logger = logging.getLogger("SGLV")   # Identificador do sistema nos logs
 DB_FILE = "produto.db"
 
 # --- Exceção customizada para cancelamento pelo usuário ---
-
 class CancelamentoUsuario(Exception):
     """
     Exceção criada para controlar cancelamentos do usuário.
@@ -39,7 +38,6 @@ class CancelamentoUsuario(Exception):
     pass
 
 # --- ETAPA 1: Classe Produto ---
-
 class Produto:
     """
     Classe que representa um produto dentro do sistema.
