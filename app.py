@@ -105,8 +105,54 @@ class Produto:
         print(linhas[-1])
         print(f"{sep}\n")
 
-# --- ETAPA 2: Classe GerenciadorEstoque com SQLite ---
+# ===========================================================================
+# ETAPA 3 — Classe ItemVenda e Venda
+# ===========================================================================
+# Cole após a classe Produto
+ 
+class ItemVenda:
+    """
+    Representa um item individual dentro de uma venda.
+ 
+    Atributos:
+        codigo     : Código do produto vendido.
+        nome       : Nome do produto vendido.
+        quantidade : Quantidade vendida.
+        preco_unit : Preço unitário no momento da venda.
+        subtotal   : Valor total do item (quantidade x preco_unit).
+    """
+ 
+    def __init__(self, codigo: str, nome: str, quantidade: int, preco_unit: float):
+        self.codigo     = codigo
+        self.nome       = nome
+        self.quantidade = quantidade
+        self.preco_unit = preco_unit
+        self.subtotal   = quantidade * preco_unit
+ 
+ 
+class Venda:
+    """
+    Representa uma venda realizada no SuperMais.
+ 
+    Atributos:
+        id_venda   : Código único da venda (ex: VDA-001).
+        data_hora  : Data e hora da venda.
+        itens      : Lista de ItemVenda da venda.
+        desconto   : Percentual de desconto aplicado (0 a 100).
+        total      : Valor total sem desconto.
+        total_final: Valor total após desconto.
+    """
+ 
+    def __init__(self, id_venda: str, data_hora: str, itens: list, desconto: float = 0.0):
+        self.id_venda    = id_venda
+        self.data_hora   = data_hora
+        self.itens       = itens
+        self.desconto    = desconto
+        self.total       = sum(item.subtotal for item in itens)
+        self.total_final = self.total * (1 - desconto / 100)
 
+
+# --- ETAPA 2: Classe GerenciadorEstoque com SQLite ---
 class GerenciadorEstoque:
     """
     Gerencia o catálogo de produtos e as operações de estoque,
@@ -343,6 +389,139 @@ class GerenciadorEstoque:
         print("-" * 110)
         print(f"Total de produtos: {len(linhas)}\n")
 
+# ===========================================================================
+# ETAPA 3 — Classe GerenciadorVendas
+# ===========================================================================
+# Cole após a classe GerenciadorEstoque
+ 
+class GerenciadorVendas:
+    """
+    Gerencia o registro de vendas e emissão de recibos,
+    com persistência em banco de dados SQLite local.
+    """
+ 
+    def __init__(self, db_file: str = DB_FILE):
+        self.db_file = db_file
+        self._inicializar_tabelas()
+ 
+    # -----------------------------------------------------------------------
+    # Conexão e inicialização
+    # -----------------------------------------------------------------------
+ 
+    def _conectar(self) -> sqlite3.Connection:
+        """Abre e retorna uma conexão com o banco SQLite."""
+        return sqlite3.connect(self.db_file)
+ 
+    def _inicializar_tabelas(self) -> None:
+        """
+        Cria as tabelas 'vendas' e 'itens_venda' no banco caso não existam.
+        Executado automaticamente na inicialização do gerenciador.
+        """
+        with self._conectar() as conn:
+            # Tabela principal da venda
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS vendas (
+                    id_venda    TEXT PRIMARY KEY,
+                    data_hora   TEXT NOT NULL,
+                    total       REAL NOT NULL,
+                    desconto    REAL NOT NULL DEFAULT 0,
+                    total_final REAL NOT NULL
+                )
+            """)
+            # Tabela dos itens de cada venda
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS itens_venda (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_venda    TEXT NOT NULL,
+                    codigo      TEXT NOT NULL,
+                    nome        TEXT NOT NULL,
+                    quantidade  INTEGER NOT NULL,
+                    preco_unit  REAL NOT NULL,
+                    subtotal    REAL NOT NULL,
+                    FOREIGN KEY (id_venda) REFERENCES vendas(id_venda)
+                )
+            """)
+            conn.commit()
+ 
+    # -----------------------------------------------------------------------
+    # Geração de ID da venda
+    # -----------------------------------------------------------------------
+ 
+    def _gerar_id_venda(self) -> str:
+        """
+        Gera automaticamente o ID da venda no formato VDA-001, VDA-002...
+        Consulta o banco para garantir sequencial correto.
+        """
+        with self._conectar() as conn:
+            cursor = conn.execute("SELECT COUNT(*) FROM vendas")
+            total = cursor.fetchone()[0]
+        return f"VDA-{total + 1:03d}"
+ 
+    # -----------------------------------------------------------------------
+    # Registro de venda
+    # -----------------------------------------------------------------------
+ 
+    def registrar_venda(self, venda: Venda) -> None:
+        """
+        Salva a venda e seus itens no banco de dados.
+ 
+        Args:
+            venda: Objeto Venda com todos os itens e valores calculados.
+        """
+        with self._conectar() as conn:
+            # Salva o cabeçalho da venda
+            conn.execute("""
+                INSERT INTO vendas (id_venda, data_hora, total, desconto, total_final)
+                VALUES (?, ?, ?, ?, ?)
+            """, (venda.id_venda, venda.data_hora, venda.total,
+                  venda.desconto, venda.total_final))
+ 
+            # Salva cada item da venda
+            for item in venda.itens:
+                conn.execute("""
+                    INSERT INTO itens_venda
+                        (id_venda, codigo, nome, quantidade, preco_unit, subtotal)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (venda.id_venda, item.codigo, item.nome,
+                      item.quantidade, item.preco_unit, item.subtotal))
+            conn.commit()
+ 
+        logger.info(f"🛒 Venda registrada: [{venda.id_venda}] "
+                    f"Total: R$ {venda.total_final:.2f} | "
+                    f"Desconto: {venda.desconto}%")
+ 
+    # -----------------------------------------------------------------------
+    # Emissão de recibo
+    # -----------------------------------------------------------------------
+ 
+    def emitir_recibo(self, venda: Venda) -> None:
+        """
+        Exibe o recibo da venda formatado no terminal.
+        Mostra todos os itens, subtotais, desconto e total final.
+        """
+        print("\n")
+        print("=" * 50)
+        print("        🛒  SUPERMERCADO SUPERMAIS")
+        print("         Sistema de Gestão — SGLV")
+        print("=" * 50)
+        print(f"  Venda     : {venda.id_venda}")
+        print(f"  Data/Hora : {venda.data_hora}")
+        print("-" * 50)
+        print(f"  {'Produto':<22} {'Qtd':>4} {'Unit':>8} {'Total':>10}")
+        print("-" * 50)
+        for item in venda.itens:
+            print(f"  {item.nome:<22} {item.quantidade:>4} "
+                  f"R${item.preco_unit:>6.2f} R${item.subtotal:>8.2f}")
+        print("-" * 50)
+        print(f"  {'Subtotal':<35} R${venda.total:>8.2f}")
+        if venda.desconto > 0:
+            print(f"  {'Desconto (' + str(venda.desconto) + '%)':<35} R${venda.total - venda.total_final:>8.2f}")
+        print("=" * 50)
+        print(f"  {'TOTAL FINAL':<35} R${venda.total_final:>8.2f}")
+        print("=" * 50)
+        print("       Obrigado pela preferência!")
+        print("=" * 50)
+
 # --- Interface ---
 
 def exibir_logo():
@@ -366,7 +545,8 @@ def exibir_opcoes():
     print("4. Remover do estoque")
     print("5. Atualizar estoque manualmente")
     print("6. Buscar produto por código")
-    print("7. Sair\n")
+    print("7. Registrar venda")
+    print("8. Sair\n")
 
 def exibir_subtitulo(texto: str):
     """Limpa a tela e exibe um subtítulo formatado."""
@@ -539,6 +719,7 @@ def adicionar_ao_estoque(gerenciador: GerenciadorEstoque):  # Opção 3
             return
         except (ValueError, KeyError) as e:
             print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
+    main()
 
 def remover_do_estoque(gerenciador: GerenciadorEstoque):  # Opção 4
     """
@@ -587,6 +768,7 @@ def remover_do_estoque(gerenciador: GerenciadorEstoque):  # Opção 4
             return
         except (ValueError, KeyError) as e:
             print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
+    main()
 
 def atualizar_estoque(gerenciador: GerenciadorEstoque):  # Opção 5
     """
@@ -624,6 +806,7 @@ def atualizar_estoque(gerenciador: GerenciadorEstoque):  # Opção 5
             return
         except (ValueError, KeyError) as e:
             print(f"\nErro: {e}. Tente novamente ou digite 'S' para cancelar.\n")
+    main()
 
 def buscar_produto(gerenciador: GerenciadorEstoque):  # Opção 6
     """Solicita o código do produto e exibe todos os seus detalhes."""
@@ -641,25 +824,139 @@ def buscar_produto(gerenciador: GerenciadorEstoque):  # Opção 6
 
     voltar_ao_menu_principal()
 
-def finalizar_app():  # Opção 7
+# ===========================================================================
+# ETAPA 3 — Funções do menu de vendas
+# ===========================================================================
+# Cole no bloco de funções do menu existente
+ 
+def registrar_venda(gerenciador_estoque: GerenciadorEstoque,
+                    gerenciador_vendas: GerenciadorVendas):  # Opção 7
+    """
+    Solicita os produtos e quantidades para registrar uma nova venda.
+    Atualiza o estoque automaticamente após confirmação.
+    Emite o recibo ao final da venda.
+    Permite aplicar desconto antes de confirmar.
+    Encerra quando o usuário confirmar ou cancelar a venda.
+    """
+    from datetime import datetime
+ 
+    exibir_subtitulo("Registrar venda")
+    print("(Digite 'S' em qualquer campo para cancelar)\n")
+ 
+    itens = []  # lista de itens da venda
+ 
+    # --- Adição de produtos à venda ---
+    gerenciador_estoque.listar_produtos()
+ 
+    while True:
+        try:
+            print(f"Itens na venda: {len(itens)} | "
+                  f"Subtotal: R$ {sum(i.subtotal for i in itens):.2f}")
+            print("(Enter sem código para finalizar a venda)\n")
+ 
+            codigo = input("Código do produto (ou Enter para finalizar): ").strip().upper()
+ 
+            # Enter sem código — vai para confirmação
+            if codigo == "":
+                if not itens:
+                    print("\n⚠︎  Nenhum produto adicionado. Adicione pelo menos um produto.\n")
+                    continue
+                break
+ 
+            # S — cancela a venda
+            if codigo == "S":
+                raise CancelamentoUsuario()
+ 
+            # Busca o produto
+            produto = gerenciador_estoque.buscar_produto(codigo)
+ 
+            # Pede a quantidade
+            quantidade = _input_int("Quantidade                         : ")
+ 
+            # Verifica se há estoque suficiente
+            if quantidade > produto.quantidade:
+                print(f"\n⚠︎  Estoque insuficiente! Disponível: {produto.quantidade} unidades.\n")
+                continue
+ 
+            # Adiciona o item à venda
+            item = ItemVenda(produto.codigo, produto.nome, quantidade, produto.preco)
+            itens.append(item)
+            print(f"\n☑︎  {produto.nome} adicionado! Subtotal: R$ {item.subtotal:.2f}\n")
+ 
+        except CancelamentoUsuario:
+            print("\nVenda cancelada.")
+            voltar_ao_menu_principal()
+            return
+        except KeyError:
+            print(f"\n⚠︎  Produto não encontrado. Tente novamente.\n")
+ 
+    # --- Aplicar desconto ---
+    try:
+        print("\n" + "-" * 40)
+        desconto = 0.0
+        aplicar = input("Deseja aplicar desconto? ('S' para sim / Enter para não): ").strip().upper()
+        if aplicar == "S":
+            desconto = _input_float("Percentual de desconto (ex: 10.5)  : ")
+            if desconto >= 100:
+                print("⚠︎  Desconto não pode ser 100% ou mais. Desconto zerado.")
+                desconto = 0.0
+ 
+        # --- Confirmação da venda ---
+        total = sum(i.subtotal for i in itens)
+        total_final = total * (1 - desconto / 100)
+        print(f"\n  Total    : R$ {total:.2f}")
+        if desconto > 0:
+            print(f"  Desconto : {desconto}%")
+        print(f"  Total final: R$ {total_final:.2f}")
+        print("-" * 40)
+ 
+        confirmar = input("\nConfirmar venda? ('S' para confirmar / Enter para cancelar): ").strip().upper()
+        if confirmar != "S":
+            print("\nVenda cancelada.")
+            voltar_ao_menu_principal()
+            return
+ 
+        # --- Registra a venda ---
+        id_venda  = gerenciador_vendas._gerar_id_venda()
+        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        venda     = Venda(id_venda, data_hora, itens, desconto)
+ 
+        # Atualiza o estoque automaticamente
+        for item in itens:
+            gerenciador_estoque.remover_do_estoque(item.codigo, item.quantidade)
+ 
+        # Salva no banco
+        gerenciador_vendas.registrar_venda(venda)
+ 
+        # Emite o recibo
+        gerenciador_vendas.emitir_recibo(venda)
+ 
+    except CancelamentoUsuario:
+        print("\nVenda cancelada.")
+ 
+    voltar_ao_menu_principal()
+
+def finalizar_app():  # Opção 8
     """Encerra o sistema."""
     exibir_subtitulo("Encerrando o sistema")
     print("Obrigado por usar o SGLV 🛒 Sistema Gerenciador de Loja de Varejo. Até logo!\n")
 
 # --- Escolha de opção e main ---
 
-def escolher_opcao(gerenciador: GerenciadorEstoque):
-    """Lê a opção digitada e chama a função correspondente."""
+def escolher_opcao(gerenciador_estoque: GerenciadorEstoque,
+                   gerenciador_vendas: GerenciadorVendas):
+    """Lê o número digitado pelo usuário e chama a função correspondente."""
     try:
         opcao = int(input("Escolha uma opção: "))
 
-        if   opcao == 1: cadastrar_produto(gerenciador)
-        elif opcao == 2: listar_produtos(gerenciador)
-        elif opcao == 3: adicionar_ao_estoque(gerenciador)
-        elif opcao == 4: remover_do_estoque(gerenciador)
-        elif opcao == 5: atualizar_estoque(gerenciador)
-        elif opcao == 6: buscar_produto(gerenciador)
-        elif opcao == 7: finalizar_app()
+        if   opcao == 1: cadastrar_produto(gerenciador_estoque)
+        elif opcao == 2: listar_produtos(gerenciador_estoque)
+        elif opcao == 3: adicionar_ao_estoque(gerenciador_estoque)
+        elif opcao == 4: remover_do_estoque(gerenciador_estoque)
+        elif opcao == 5: atualizar_estoque(gerenciador_estoque)
+        elif opcao == 6: buscar_produto(gerenciador_estoque)
+        elif opcao == 7: registrar_venda(gerenciador_estoque, gerenciador_vendas)
+        elif opcao == 8: finalizar_app()
         else:            opcao_invalida()
     except:
         opcao_invalida()
@@ -667,10 +964,11 @@ def escolher_opcao(gerenciador: GerenciadorEstoque):
 def main():
     """Inicializa o sistema e exibe o menu."""
     os.system("cls" if os.name == "nt" else "clear")
-    gerenciador = GerenciadorEstoque()
+    gerenciador_estoque = GerenciadorEstoque()
+    gerenciador_vendas  = GerenciadorVendas()
     exibir_logo()
     exibir_opcoes()
-    escolher_opcao(gerenciador)
+    escolher_opcao(gerenciador_estoque, gerenciador_vendas)
 
 # --- Entrada do programa ---
 
