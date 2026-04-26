@@ -194,8 +194,8 @@ class GerenciadorEstoque:
 
     def _inicializar_banco(self) -> None:
         """
-        Cria a tabela 'produtos' no banco caso ela ainda não exista.
-        Executado automaticamente na inicialização do gerenciador.3
+        Cria as tabelas 'produtos' e 'movimentacoes' no banco caso não existam.
+        Executado automaticamente na inicialização do gerenciador.
         """
         with self._conectar() as conn:
             conn.execute("""
@@ -208,6 +208,17 @@ class GerenciadorEstoque:
                     descricao       TEXT,
                     fornecedor      TEXT,
                     estoque_minimo  INTEGER NOT NULL DEFAULT 5
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS movimentacoes (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    data_hora   TEXT NOT NULL,
+                    tipo        TEXT NOT NULL,
+                    codigo      TEXT NOT NULL,
+                    nome        TEXT NOT NULL,
+                    quantidade  INTEGER NOT NULL,
+                    origem      TEXT NOT NULL
                 )
             """)
             conn.commit()
@@ -229,6 +240,29 @@ class GerenciadorEstoque:
                 f"{produto.quantidade} unidade(s) (mínimo: {produto.estoque_minimo}). "
                 f"Fornecedor: {produto.fornecedor}"
             )
+
+    def _registrar_movimentacao(self, tipo: str, produto: Produto,
+                                quantidade: int, origem: str) -> None:
+        """
+        Registra uma movimentação de estoque no banco de dados.
+        Chamado automaticamente pelos métodos de gestão de estoque.
+
+        Args:
+            tipo      : Tipo da movimentação (ENTRADA, SAIDA, AJUSTE).
+            produto   : Objeto Produto movimentado.
+            quantidade: Quantidade movimentada.
+            origem    : Origem da movimentação (COMPRA, VENDA, INVENTARIO).
+        """
+        from datetime import datetime
+        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+        with self._conectar() as conn:
+            conn.execute("""
+                INSERT INTO movimentacoes
+                    (data_hora, tipo, codigo, nome, quantidade, origem)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (data_hora, tipo, produto.codigo, produto.nome, quantidade, origem))
+            conn.commit()
 
     # --- ETAPA 3: Cadastro ---
 
@@ -294,6 +328,7 @@ class GerenciadorEstoque:
                 (nova_quantidade, codigo)
             )
             conn.commit()
+        self._registrar_movimentacao("ENTRADA", produto, quantidade, "COMPRA")
 
         produto.quantidade = nova_quantidade
         logger.info(
@@ -334,6 +369,7 @@ class GerenciadorEstoque:
                 (nova_quantidade, codigo)
             )
             conn.commit()
+        self._registrar_movimentacao("SAIDA", produto, quantidade, "VENDA")
 
         produto.quantidade = nova_quantidade
         logger.info(
@@ -362,6 +398,8 @@ class GerenciadorEstoque:
                 (nova_quantidade, codigo)
             )
             conn.commit()
+        diferenca = abs(nova_quantidade - quantidade_anterior)
+        self._registrar_movimentacao("AJUSTE", produto, diferenca, "INVENTARIO")
 
         produto.quantidade = nova_quantidade
         logger.info(
@@ -522,6 +560,162 @@ class GerenciadorVendas:
         print("       Obrigado pela preferência!")
         print("=" * 50)
 
+# ===========================================================================
+# ETAPA 4 — Classe GerenciadorRelatorios
+# ===========================================================================
+# Cole após a classe GerenciadorVendas
+ 
+class GerenciadorRelatorios:
+    """
+    Gera relatórios de vendas, estoque e histórico de movimentações
+    a partir dos dados persistidos no banco de dados SQLite.
+    """
+ 
+    def __init__(self, db_file: str = DB_FILE):
+        self.db_file = db_file
+ 
+    def _conectar(self) -> sqlite3.Connection:
+        """Abre e retorna uma conexão com o banco SQLite."""
+        return sqlite3.connect(self.db_file)
+ 
+    # -----------------------------------------------------------------------
+    # Relatório 1 — Vendas
+    # -----------------------------------------------------------------------
+ 
+    def relatorio_vendas(self) -> None:
+        """
+        Exibe relatório detalhado de todas as vendas realizadas.
+        Mostra data, ID, produtos vendidos, quantidade e valor total.
+        """
+        with self._conectar() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM vendas ORDER BY data_hora DESC"
+            )
+            vendas = cursor.fetchall()
+ 
+        if not vendas:
+            print("\nNenhuma venda registrada ainda.\n")
+            return
+ 
+        total_geral = 0.0
+        sep = "=" * 70
+ 
+        print(f"\n{sep}")
+        print("  RELATÓRIO DE VENDAS")
+        print(sep)
+ 
+        for venda in vendas:
+            id_venda, data_hora, total, desconto, total_final = venda
+ 
+            # Busca os itens da venda
+            with self._conectar() as conn:
+                cursor = conn.execute(
+                    "SELECT * FROM itens_venda WHERE id_venda = ?", (id_venda,)
+                )
+                itens = cursor.fetchall()
+ 
+            print(f"\n  Venda     : {id_venda}  |  Data: {data_hora}")
+            print(f"  {'Produto':<25} {'Qtd':>5} {'Unit':>9} {'Subtotal':>10}")
+            print("  " + "-" * 55)
+            for item in itens:
+                _, _, codigo, nome, quantidade, preco_unit, subtotal = item
+                print(f"  {nome:<25} {quantidade:>5} "
+                      f"R${preco_unit:>7.2f} R${subtotal:>8.2f}")
+            print("  " + "-" * 55)
+            print(f"  Subtotal: R$ {total:>8.2f}  |  "
+                  f"Desconto: {desconto}%  |  "
+                  f"Total Final: R$ {total_final:>8.2f}")
+            print(f"  {'-' * 55}")
+            total_geral += total_final
+ 
+        print(f"\n{sep}")
+        print(f"  Total de vendas  : {len(vendas)}")
+        print(f"  Receita total    : R$ {total_geral:.2f}")
+        print(f"{sep}\n")
+ 
+    # -----------------------------------------------------------------------
+    # Relatório 2 — Estoque
+    # -----------------------------------------------------------------------
+ 
+    def relatorio_estoque(self) -> None:
+        """
+        Exibe relatório completo do estoque atual.
+        Inclui valor total em estoque e produtos em alerta.
+        """
+        with self._conectar() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM produtos ORDER BY categoria, nome"
+            )
+            linhas = cursor.fetchall()
+ 
+        if not linhas:
+            print("\nNenhum produto cadastrado ainda.\n")
+            return
+ 
+        valor_total    = 0.0
+        total_alertas  = 0
+        sep = "=" * 70
+ 
+        print(f"\n{sep}")
+        print("  RELATÓRIO DE ESTOQUE")
+        print(sep)
+        print(f"  {'Código':<12} {'Nome':<25} {'Categoria':<18} "
+              f"{'Qtd':>5} {'Preço':>9} {'Total':>10}")
+        print("  " + "-" * 65)
+ 
+        for linha in linhas:
+            codigo, nome, categoria, quantidade, preco, descricao, fornecedor, estoque_minimo = linha
+            subtotal = quantidade * preco
+            valor_total += subtotal
+            alerta = " ⚠︎" if quantidade <= estoque_minimo else ""
+            print(f"  {codigo:<12} {nome:<25} {categoria:<18} "
+                  f"{quantidade:>5} R${preco:>7.2f} R${subtotal:>8.2f}{alerta}")
+            if quantidade <= estoque_minimo:
+                total_alertas += 1
+ 
+        print(f"\n{sep}")
+        print(f"  Total de produtos    : {len(linhas)}")
+        print(f"  Produtos em alerta   : {total_alertas}")
+        print(f"  Valor total em estoque: R$ {valor_total:.2f}")
+        print(f"{sep}\n")
+ 
+    # -----------------------------------------------------------------------
+    # Relatório 3 — Histórico de Movimentações
+    # -----------------------------------------------------------------------
+ 
+    def historico_movimentacoes(self) -> None:
+        """
+        Exibe o histórico completo de movimentações de estoque.
+        Inclui entradas, saídas e ajustes com data e origem.
+        """
+        with self._conectar() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM movimentacoes ORDER BY data_hora DESC"
+            )
+            movimentacoes = cursor.fetchall()
+ 
+        if not movimentacoes:
+            print("\nNenhuma movimentação registrada ainda.\n")
+            return
+ 
+        sep = "=" * 75
+ 
+        print(f"\n{sep}")
+        print("  HISTÓRICO DE MOVIMENTAÇÕES")
+        print(sep)
+        print(f"  {'Data/Hora':<20} {'Tipo':<10} {'Origem':<12} "
+              f"{'Código':<10} {'Produto':<20} {'Qtd':>6}")
+        print("  " + "-" * 70)
+ 
+        for mov in movimentacoes:
+            id_, data_hora, tipo, codigo, nome, quantidade, origem = mov
+            print(f"  {data_hora:<20} {tipo:<10} {origem:<12} "
+                  f"{codigo:<10} {nome:<20} {quantidade:>6}")
+ 
+        print(f"\n{sep}")
+        print(f"  Total de movimentações: {len(movimentacoes)}")
+        print(f"{sep}\n")
+
 # --- Interface ---
 
 def exibir_logo():
@@ -546,7 +740,8 @@ def exibir_opcoes():
     print("5. Atualizar estoque manualmente")
     print("6. Buscar produto por código")
     print("7. Registrar venda")
-    print("8. Sair\n")
+    print("8. Relatórios")
+    print("9. Sair\n")
 
 def exibir_subtitulo(texto: str):
     """Limpa a tela e exibe um subtítulo formatado."""
@@ -936,7 +1131,49 @@ def registrar_venda(gerenciador_estoque: GerenciadorEstoque,
  
     voltar_ao_menu_principal()
 
-def finalizar_app():  # Opção 8
+# ===========================================================================
+# ETAPA 4 — Funções do menu de relatórios
+# ===========================================================================
+# Cole no bloco de funções do menu existente, antes do finalizar_app()
+ 
+def menu_relatorios(gerenciador_relatorios: GerenciadorRelatorios):  # Opção 8
+    """
+    Exibe o submenu de relatórios e direciona para o relatório escolhido.
+    Agrupa os três relatórios em um único submenu organizado.
+    Encerra quando o usuário digitar 0.
+    """
+    while True:
+        exibir_subtitulo("Relatórios")
+        print("1. Relatório de Vendas")
+        print("2. Relatório de Estoque")
+        print("3. Histórico de Movimentações")
+        print("0. Voltar ao menu principal\n")
+ 
+        opcao = input("Escolha uma opção: ").strip()
+ 
+        if opcao == "1":
+            exibir_subtitulo("Relatório de Vendas")
+            gerenciador_relatorios.relatorio_vendas()
+            input("Digite uma tecla para voltar aos relatórios ")
+ 
+        elif opcao == "2":
+            exibir_subtitulo("Relatório de Estoque")
+            gerenciador_relatorios.relatorio_estoque()
+            input("Digite uma tecla para voltar aos relatórios ")
+ 
+        elif opcao == "3":
+            exibir_subtitulo("Histórico de Movimentações")
+            gerenciador_relatorios.historico_movimentacoes()
+            input("Digite uma tecla para voltar aos relatórios ")
+ 
+        elif opcao == "0":
+            main()
+            return
+ 
+        else:
+            print("\nOpção inválida!\n")
+
+def finalizar_app():  # Opção 9
     """Encerra o sistema."""
     exibir_subtitulo("Encerrando o sistema")
     print("Obrigado por usar o SGLV 🛒 Sistema Gerenciador de Loja de Varejo. Até logo!\n")
@@ -944,7 +1181,8 @@ def finalizar_app():  # Opção 8
 # --- Escolha de opção e main ---
 
 def escolher_opcao(gerenciador_estoque: GerenciadorEstoque,
-                   gerenciador_vendas: GerenciadorVendas):
+                   gerenciador_vendas: GerenciadorVendas,
+                   gerenciador_relatorios: GerenciadorRelatorios):
     """Lê o número digitado pelo usuário e chama a função correspondente."""
     try:
         opcao = int(input("Escolha uma opção: "))
@@ -956,7 +1194,8 @@ def escolher_opcao(gerenciador_estoque: GerenciadorEstoque,
         elif opcao == 5: atualizar_estoque(gerenciador_estoque)
         elif opcao == 6: buscar_produto(gerenciador_estoque)
         elif opcao == 7: registrar_venda(gerenciador_estoque, gerenciador_vendas)
-        elif opcao == 8: finalizar_app()
+        elif opcao == 8: menu_relatorios(gerenciador_relatorios)
+        elif opcao == 9: finalizar_app()
         else:            opcao_invalida()
     except:
         opcao_invalida()
@@ -966,9 +1205,10 @@ def main():
     os.system("cls" if os.name == "nt" else "clear")
     gerenciador_estoque = GerenciadorEstoque()
     gerenciador_vendas  = GerenciadorVendas()
+    gerenciador_relatorios = GerenciadorRelatorios()
     exibir_logo()
     exibir_opcoes()
-    escolher_opcao(gerenciador_estoque, gerenciador_vendas)
+    escolher_opcao(gerenciador_estoque, gerenciador_vendas, gerenciador_relatorios)
 
 # --- Entrada do programa ---
 

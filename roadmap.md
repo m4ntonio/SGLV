@@ -28,15 +28,15 @@ Passo 2 - Criar um sistema gerenciador de loja de varejo com gestão de estoque 
 4. ✓ Alerta de Estoque Baixo: Sistema de notificação quando a quantidade de um produto atinge um nível mínimo predefinido.
 
 ###### 3\. Vendas
-1. ✗ Registro de Vendas: Função para registrar a venda de produtos.
-2. ✗ Atualização Automática do Estoque: Ao registrar uma venda, a quantidade em estoque deve ser automaticamente reduzida.
-3. ✗ Emissão de Recibo: Geração de um recibo ou nota fiscal após a venda.
-4. ✗ Descontos e Promoções: Função para aplicar descontos específicos ou promoções a produtos.
+1. ✓ Registro de Vendas: Função para registrar a venda de produtos.
+2. ✓ Atualização Automática do Estoque: Ao registrar uma venda, a quantidade em estoque deve ser automaticamente reduzida.
+3. ✓ Emissão de Recibo: Geração de um recibo ou nota fiscal após a venda.
+4. ✓ Descontos e Promoções: Função para aplicar descontos específicos ou promoções a produtos.
 
 ###### 4\. Relatórios
-1. ✗ Relatório de Vendas: Relatório detalhado das vendas realizadas, incluindo data, produtos vendidos, quantidade e valor total.
-2. ✗ Relatório de Estoque: Visualização da quantidade atual de todos os produtos no estoque.
-3. ✗ Histórico de Movimentações: Registro de todas as adições e remoções de estoque.
+1. ✓ Relatório de Vendas: Relatório detalhado das vendas realizadas, incluindo data, produtos vendidos, quantidade e valor total.
+2. ✓ Relatório de Estoque: Visualização da quantidade atual de todos os produtos no estoque.
+3. ✓ Histórico de Movimentações: Registro de todas as adições e remoções de estoque.
 
 ###### 7\. Integração e Backup
 1. ✗ Backup Automático: Funcionalidade para criar backups automáticos do banco de dados.
